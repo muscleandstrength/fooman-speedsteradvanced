@@ -123,13 +123,32 @@ class Fooman_SpeedsterAdvanced_Model_Core_Design_Package extends Mage_Core_Model
             );
         }
 
-        if (Mage::getIsDeveloperMode()) {
-            return
-                "\n/*" . $file . " (minified) */\n" . Mage::getModel('speedsterAdvanced/javascript')->minify($contents)
-                . "\n\n";
+        if (str_ends_with($file, '.min.js')) {
+            if (Mage::getIsDeveloperMode()) {
+                return "\n/*" . $file . " (already minified) */\n" . $contents . "\n\n";
+            }
+
+            return "\n" . $contents;
         }
 
-        return "\n" . Mage::getModel('speedsterAdvanced/javascript')->minify($contents);
+        try {
+            $minified = Mage::getModel('speedsterAdvanced/javascript')->minify($contents);
+        } catch (Throwable $e) {
+            // a throw fails the merge, leaking filesystem paths for every file
+            Mage::logException($e);
+
+            if (Mage::getIsDeveloperMode()) {
+                return "\n/*" . $file . " (minify failed) */\n" . $contents . "\n\n";
+            }
+
+            return "\n" . $contents;
+        }
+
+        if (Mage::getIsDeveloperMode()) {
+            return "\n/*" . $file . " (minified) */\n" . $minified . "\n\n";
+        }
+
+        return "\n" . $minified;
     }
 
     /**
